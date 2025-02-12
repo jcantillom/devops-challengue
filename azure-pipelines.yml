@@ -56,6 +56,7 @@ stages:
         displayName: "Verificar que SonarQube esté corriendo"
         steps:
           - script: |
+              ls -la
               echo "⌛ Esperando 2 minutos para que la instancia esté lista..."
               sleep 120
 
