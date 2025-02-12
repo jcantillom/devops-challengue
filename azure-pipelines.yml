@@ -17,6 +17,12 @@ stages:
           - checkout: self
 
           - script: |
+              echo "📂 Creando carpeta terraform si no existe..."
+              mkdir -p $(Build.SourcesDirectory)/terraform
+              cd $(Build.SourcesDirectory)/terraform
+            displayName: "Asegurar carpeta Terraform"
+
+          - script: |
               echo "⚡ Instalando dependencias necesarias en Arch Linux..."
               sudo pacman -Syu --noconfirm unzip curl jq aws-cli terraform
             displayName: "Instalar dependencias (Terraform, AWS CLI, etc.)"
@@ -29,34 +35,31 @@ stages:
             displayName: "Configurar AWS CLI"
 
           - script: |
+              cd $(Build.SourcesDirectory)/terraform
               echo "⚡ Inicializando Terraform..."
               terraform init
             displayName: "Terraform Init"
 
           - script: |
+              cd $(Build.SourcesDirectory)/terraform
               echo "⚡ Validando configuración de Terraform..."
               terraform validate
             displayName: "Terraform Validate"
 
           - script: |
+              cd $(Build.SourcesDirectory)/terraform
               echo "⚡ Creando plan de ejecución..."
               terraform plan -out=tfplan
             displayName: "Terraform Plan"
 
           - script: |
-              echo "⚡ Validando Terraform antes de aplicar cambios..."
-              terraform plan -out=tfplan
-              terraform show -json tfplan | jq -r '.resource_changes[].change.actions' > changes.json
-
-              if grep -q "create\\|delete\\|update" changes.json; then
-                echo "⚡ Aplicando Terraform porque hay cambios..."
-                terraform apply -auto-approve tfplan
-              else
-                echo "✅ No hay cambios en la infraestructura. Terraform no aplicará nada."
-              fi
-            displayName: "Validar y Aplicar Terraform Solo si Hay Cambios"
+              cd $(Build.SourcesDirectory)/terraform
+              echo "⚡ Aplicando Terraform..."
+              terraform apply -auto-approve tfplan
+            displayName: "Terraform Apply"
 
           - script: |
+              cd $(Build.SourcesDirectory)/terraform
               echo "📦 Guardando estado de Terraform..."
               cp terraform.tfstate terraform.tfstate.backup
             displayName: "Guardar Backup de Terraform State"
@@ -66,6 +69,7 @@ stages:
               targetPath: '$(Build.SourcesDirectory)/terraform'
               artifact: 'terraform-state'
             displayName: "Publicar estado de Terraform"
+
 
   - stage: SonarQube_Deploy
     displayName: "Verificar SonarQube"
