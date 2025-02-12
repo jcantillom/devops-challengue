@@ -9,9 +9,11 @@ output "public_subnet_id" {
 
 output "sonarqube_ip" {
   value = length(aws_instance.devops_sonarqube) > 0 ? aws_instance.devops_sonarqube[0].public_ip : (
-    length(data.aws_instances.existing_sonarqube.ids) > 0 ? data.aws_instances.existing_sonarqube.ids[0] : null
+    length(data.aws_instances.existing_sonarqube.ids) > 0 ? data.aws_instances.existing_sonarqube.public_ips[0] : null
   )
+  description = "IP pública de la instancia EC2 donde está SonarQube"
 }
+
 
 
 
