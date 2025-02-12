@@ -1,0 +1,71 @@
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  AWS_REGION: '$(AWS_REGION)'
+  AWS_ACCESS_KEY_ID: '$(AWS_ACCESS_KEY_ID)'
+  AWS_SECRET_ACCESS_KEY: '$(AWS_SECRET_ACCESS_KEY)'
+
+stages:
+  - stage: Terraform_Deploy
+    displayName: "Desplegar Infraestructura en AWS"
+    jobs:
+      - job: Terraform
+        displayName: "Ejecutar Terraform"
+        steps:
+          - checkout: self
+
+          - script: |
+              echo "⚡ Instalando Terraform..."
+              sudo apt-get update && sudo apt-get install -y unzip
+              curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+              sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+              sudo apt-get update && sudo apt-get install terraform -y
+            displayName: "Instalar Terraform"
+
+          - script: |
+              echo "⚡ Configurando AWS CLI..."
+              sudo apt install -y awscli
+              aws configure set aws_access_key_id $(AWS_ACCESS_KEY_ID)
+              aws configure set aws_secret_access_key $(AWS_SECRET_ACCESS_KEY)
+              aws configure set region $(AWS_REGION)
+            displayName: "Configurar AWS CLI"
+
+          - script: |
+              echo "⚡ Inicializando Terraform..."
+              terraform init
+            displayName: "Terraform Init"
+
+          - script: |
+              echo "⚡ Validando configuración..."
+              terraform validate
+            displayName: "Terraform Validate"
+
+          - script: |
+              echo "⚡ Creando plan de ejecución..."
+              terraform plan -out=tfplan
+            displayName: "Terraform Plan"
+
+          - script: |
+              echo "⚡ Aplicando Terraform..."
+              terraform apply -auto-approve
+            displayName: "Terraform Apply"
+
+  - stage: SonarQube_Deploy
+    displayName: "Verificar SonarQube"
+    dependsOn: Terraform_Deploy
+    jobs:
+      - job: Check_SonarQube
+        displayName: "Verificar que SonarQube esté corriendo"
+        steps:
+          - script: |
+              echo "⌛ Esperando 2 minutos para que la instancia esté lista..."
+              sleep 120
+
+              echo "🔍 Obteniendo IP pública..."
+              SONARQUBE_IP=$(terraform output -raw sonarqube_ip)
+              echo "🌍 SonarQube debería estar accesible en http://$SONARQUBE_IP:9000"
+            displayName: "Verificar SonarQube"
