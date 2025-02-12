@@ -1,5 +1,5 @@
 trigger:
-  - main
+  - master
 
 pool:
   name: 'self-host'  # Usa el agente self-hosted en Arch Linux
