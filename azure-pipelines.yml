@@ -2,7 +2,7 @@ trigger:
   - master
 
 pool:
-  name: 'self-host'
+  name: 'hosted-pool'
 
 variables:
   - group: AWS-Credentials
