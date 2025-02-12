@@ -44,9 +44,28 @@ stages:
             displayName: "Terraform Plan"
 
           - script: |
-              echo "⚡ Aplicando Terraform..."
-              terraform apply -auto-approve
-            displayName: "Terraform Apply"
+              echo "⚡ Validando Terraform antes de aplicar cambios..."
+              terraform plan -out=tfplan
+              terraform show -json tfplan | jq -r '.resource_changes[].change.actions' > changes.json
+
+              if grep -q "create\\|delete\\|update" changes.json; then
+                echo "⚡ Aplicando Terraform porque hay cambios..."
+                terraform apply -auto-approve tfplan
+              else
+                echo "✅ No hay cambios en la infraestructura. Terraform no aplicará nada."
+              fi
+            displayName: "Validar y Aplicar Terraform Solo si Hay Cambios"
+
+          - script: |
+              echo "📦 Guardando estado de Terraform..."
+              cp terraform.tfstate terraform.tfstate.backup
+            displayName: "Guardar Backup de Terraform State"
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.SourcesDirectory)/terraform'
+              artifact: 'terraform-state'
+            displayName: "Publicar estado de Terraform"
 
   - stage: SonarQube_Deploy
     displayName: "Verificar SonarQube"
@@ -55,12 +74,24 @@ stages:
       - job: Check_SonarQube
         displayName: "Verificar que SonarQube esté corriendo"
         steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifactName: 'terraform-state'
+              targetPath: '$(System.ArtifactsDirectory)/terraform'
+            displayName: "📥 Descargar estado de Terraform"
+
           - script: |
-              ls -la
+              cd $(System.ArtifactsDirectory)/terraform
               echo "⌛ Esperando 2 minutos para que la instancia esté lista..."
               sleep 120
 
-              echo "🔍 Obteniendo IP pública..."
-              SONARQUBE_IP=$(terraform output -raw sonarqube_ip)
+              echo "🔍 Intentando obtener la IP pública de SonarQube desde Terraform..."
+              SONARQUBE_IP=$(terraform output -raw sonarqube_ip 2>/dev/null)
+
+              if [ -z "$SONARQUBE_IP" ]; then
+                echo "❌ ERROR: No se pudo obtener la IP pública desde Terraform."
+                exit 1
+              fi
+
               echo "🌍 SonarQube debería estar accesible en http://$SONARQUBE_IP:9000"
             displayName: "Verificar SonarQube"
