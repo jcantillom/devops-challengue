@@ -2,10 +2,10 @@ trigger:
   - master
 
 pool:
-  name: 'self-host'  # Usa el agente self-hosted en Arch Linux
+  name: 'self-host'
 
 variables:
-  - group: AWS-Credentials  # Usa las credenciales de AWS
+  - group: AWS-Credentials
 
 stages:
   - stage: Terraform_Deploy
@@ -17,10 +17,11 @@ stages:
           - checkout: self
 
           - script: |
-              echo "📂 Creando carpeta terraform si no existe..."
-              mkdir -p $(Build.SourcesDirectory)/terraform
-              cd $(Build.SourcesDirectory)/terraform
-            displayName: "Asegurar carpeta Terraform"
+              echo "📂 Verificando directorios en el workspace..."
+              ls -la $(Build.SourcesDirectory)
+              echo "📂 Verificando archivos .tf en el directorio del repositorio:"
+              ls -la $(Build.SourcesDirectory)
+            displayName: "Verificar directorios y archivos"
 
           - script: |
               echo "⚡ Instalando dependencias necesarias en Arch Linux..."
@@ -28,47 +29,35 @@ stages:
             displayName: "Instalar dependencias (Terraform, AWS CLI, etc.)"
 
           - script: |
-              echo "⚡ Configurando AWS CLI..."
-              aws configure set aws_access_key_id $(AWS_ACCESS_KEY_ID)
-              aws configure set aws_secret_access_key $(AWS_SECRET_ACCESS_KEY)
-              aws configure set region $(AWS_REGION)
-            displayName: "Configurar AWS CLI"
-
-          - script: |
-              cd $(Build.SourcesDirectory)/terraform
+              cd $(Build.SourcesDirectory)
               echo "⚡ Inicializando Terraform..."
               terraform init
             displayName: "Terraform Init"
 
           - script: |
-              cd $(Build.SourcesDirectory)/terraform
+              cd $(Build.SourcesDirectory)
               echo "⚡ Validando configuración de Terraform..."
               terraform validate
             displayName: "Terraform Validate"
 
           - script: |
-              cd $(Build.SourcesDirectory)/terraform
+              cd $(Build.SourcesDirectory)
               echo "⚡ Creando plan de ejecución..."
               terraform plan -out=tfplan
             displayName: "Terraform Plan"
 
           - script: |
-              cd $(Build.SourcesDirectory)/terraform
+              cd $(Build.SourcesDirectory)
               echo "⚡ Aplicando Terraform..."
               terraform apply -auto-approve tfplan
             displayName: "Terraform Apply"
 
-          - script: |
-              cd $(Build.SourcesDirectory)/terraform
-              echo "📦 Guardando estado de Terraform..."
-              cp terraform.tfstate terraform.tfstate.backup
-            displayName: "Guardar Backup de Terraform State"
-
           - task: PublishPipelineArtifact@1
             inputs:
-              targetPath: '$(Build.SourcesDirectory)/terraform'
+              targetPath: '$(Build.SourcesDirectory)'
               artifact: 'terraform-state'
             displayName: "Publicar estado de Terraform"
+
 
 
   - stage: SonarQube_Deploy
@@ -89,13 +78,8 @@ stages:
               echo "⌛ Esperando 2 minutos para que la instancia esté lista..."
               sleep 120
 
-              echo "🔍 Intentando obtener la IP pública de SonarQube desde Terraform..."
-              SONARQUBE_IP=$(terraform output -raw sonarqube_ip 2>/dev/null)
-
-              if [ -z "$SONARQUBE_IP" ]; then
-                echo "❌ ERROR: No se pudo obtener la IP pública desde Terraform."
-                exit 1
-              fi
-
+              echo "🔍 obteniendo la IP pública de SonarQube desde Terraform..."
+              SONARQUBE_IP=$(terraform output sonarqube_public_ip)
+              
               echo "🌍 SonarQube debería estar accesible en http://$SONARQUBE_IP:9000"
             displayName: "Verificar SonarQube"
