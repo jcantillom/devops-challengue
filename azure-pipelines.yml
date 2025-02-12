@@ -79,7 +79,7 @@ stages:
               sleep 120
 
               echo "🔍 obteniendo la IP pública de SonarQube desde Terraform..."
-              SONARQUBE_IP=$(terraform output sonarqube_public_ip)
+              SONARQUBE_IP=$(terraform output sonarqube_ip)
               
               echo "🌍 SonarQube debería estar accesible en http://$SONARQUBE_IP:9000"
             displayName: "Verificar SonarQube"
