@@ -85,9 +85,7 @@ stages:
               cd $(System.ArtifactsDirectory)/terraform
               echo "⌛ Esperando 2 minutos para que la instancia esté lista..."
               sleep 120
-              echo "🔄 Refrescando el estado de Terraform..."
-              terraform refresh
-
+              
               echo "🔍 obteniendo la IP pública de SonarQube desde Terraform..."
               SONARQUBE_IP=$(terraform output -raw sonarqube_ip | tr -d '"')
 
