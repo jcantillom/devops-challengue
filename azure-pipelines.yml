@@ -29,10 +29,18 @@ stages:
             displayName: "Instalar dependencias (Terraform, AWS CLI, etc.)"
 
           - script: |
-              cd $(Build.SourcesDirectory)
-              echo "⚡ Inicializando Terraform..."
-              terraform init
-            displayName: "Terraform Init"
+              echo "🔄 Eliminando caché de Terraform..."
+              rm -rf .terraform/ terraform.tfstate* terraform.lock.hcl
+
+              echo "🔄 Inicializando Terraform con actualización de proveedores..."
+              terraform init -upgrade
+
+              echo "🔄 Corrigiendo permisos de los proveedores..."
+              find .terraform/providers/ -type f -name "terraform-provider-aws*" -exec chmod +x {} \;
+
+              echo "✅ Terraform ha sido inicializado correctamente."
+            displayName: "Inicializar Terraform"
+
 
           - script: |
               cd $(Build.SourcesDirectory)
